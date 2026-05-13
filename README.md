@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 輸出管理 該否判定システム
 
-## Getting Started
+外国為替及び外国貿易法（外為法）に基づく輸出管理の該否判定を支援するWebアプリケーション。e-gov APIから取得した法令データと実測値の数値比較により、**LLMの定性判断に頼らない客観的な判定**を実現する。
 
-First, run the development server:
+## 特徴
+
+- **数値比較による判定** — 実測値と規制閾値を直接比較。人による解釈のブレをなくす
+- **AND/OR条件の正確な評価** — 法令の「かつ」「又は」構造をDBで表現し、複合条件を正しく評価
+- **判定履歴の自動保存** — 証跡として全判定をDB保管。PDF出力で稟議・監査対応
+- **法令改正への追従** — e-gov APIから最新法令を再取得し、ワンクリックで再構築可能
+
+## 対応品目
+
+| フォーム | 対象条文 | 品目例 |
+|---------|---------|-------|
+| 繊維・素材 | 第四条 | ガラス繊維、炭素繊維、CFRP素材 |
+| 成型品・構造材 | 第一条・第三条 | 複合材料成型品、管・板 |
+| 工作機械・加工装置 | 第一条・第五条 | マシニングセンタ、旋盤 |
+| レーザー・光学機器 | 第一条・第九条 | レーザー発振器 |
+| 電子機器・半導体 | 第六条・第九条 | 集積回路、通信機器 |
+| 化学品・特殊材料 | 第二条・第二条の二・第三条 | 特殊金属、化学製剤 |
+
+## 技術スタック
+
+- **フロントエンド**: Next.js 15 (App Router) / TypeScript / Tailwind CSS / shadcn/ui
+- **バックエンド**: Next.js API Routes
+- **データベース**: Supabase (PostgreSQL)
+- **LLM**: Anthropic Claude（パラメータ名補完・チャット）
+- **法令データ**: e-gov 法令API（無料・公開）
+
+## セットアップ
 
 ```bash
+npm install
+cp .env.local.example .env.local
+# .env.local に各キーを記入
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+DBマイグレーションは `supabase/migrations/` 内のSQLを番号順にSupabase SQL Editorで実行。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+法令データ初期構築は `http://localhost:3000/regulations` から：  
+**法令取得 → 閾値抽出 → LLM補完 → 既知誤抽出を修正** の順に実行。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ドキュメント
 
-## Learn More
+- [ユーザーマニュアル](docs/user-manual.md)
+- [技術解説書](docs/technical-guide.md)
+- [動作検証マニュアル](docs/verification-manual.md)
 
-To learn more about Next.js, take a look at the following resources:
+## 注意事項
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+このシステムの判定結果は参考情報です。最終的な該否判断は担当者が確認し、不明な場合はCISTECへご相談ください。判定の証跡は必ず保管してください。
