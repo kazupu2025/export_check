@@ -9,12 +9,20 @@ export type ConditionType = 'MATCH' | 'EXCLUDE' | 'REQUIRE_REVIEW';
 
 // e-gov XMLから抽出した生の条文データ
 export interface RawArticle {
-  articleNum: string;      // 例: "第四条"
+  articleNum: string;
   articleCaption?: string;
-  items: RawItem[];
+  paragraphs: RawParagraph[];  // 項ごとのデータ
+  items: RawItem[];            // 全項の号をフラット化したもの（後方互換）
+}
+
+export interface RawParagraph {
+  paraNum: number;
+  sentences: string[];   // 項本文テキスト（ParagraphSentence）
+  hasItems: boolean;     // この項に号（Item）があるか
 }
 
 export interface RawItem {
+  paraNum: number;         // 項番号（1始まり）
   itemNum: string;         // 例: "十五"
   sentences: string[];     // 条文テキスト
   subitems: RawSubitem[];

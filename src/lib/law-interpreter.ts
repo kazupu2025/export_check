@@ -1,75 +1,93 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import type { ExtractedRule } from './types';
 
-const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `あなたは日本の安全保障貿易管理（外為法）の専門家AIです。
 貨物等省令の条文テキストを読み、輸出規制ルールを構造化データとして抽出します。
 
-以下のJSONフォーマットで回答してください（配列形式）。
-コードブロックや説明文は不要です。JSONのみを返してください。
+抽出ルール:
+- regulationItem は条文が定める別表第一の項番号を正確に特定する（例: "1の項(1)", "4の項(15)"）
+- 各材料・カテゴリ種別ごとに個別のルールとして抽出する
+- 除外規定（〜を除く）は conditionType: "EXCLUDE" として別ルールで抽出する
+- 閾値・数値条件は必ず含める
+- ルールが存在しない条文（手続き規定のみ等）は空配列を返す
 
-[
-  {
-    "ruleCode": "RULE-{項番}-{繊維種別等の識別子}",
-    "regulationItem": "例: 5の項(18)",
-    "subItem": "例: 省令第4条第15号ハ",
-    "descriptionJa": "人間が読む条件の説明（100字以内）",
-    "targetMaterials": ["ガラス繊維", "無機繊維"],
-    "conditionType": "MATCH" | "EXCLUDE" | "REQUIRE_REVIEW",
-    "conditionLogic": { /* JSONLogic形式 */ },
-    "conditionDescription": "判定条件の簡潔な説明",
-    "thresholds": { "比弾性率_m": 2540000, "融点_celsius": 1649 },
-    "sourceText": "根拠となる条文の原文（引用）",
-    "effectiveFrom": "YYYY-MM-DD",
-    "sourceLaw": "省令第4条第15号ハ"
-  }
-]
-
-JSONLogicの書き方:
-- 「比弾性率 > 2,540,000m」→ {">": [{"var": "elastic_modulus_m"}, 2540000]}
-- 「融点 > 1649℃」→ {">": [{"var": "melting_point_celsius"}, 1649]}
-- 「かつ（AND）」→ {"and": [...]}
-- 「または（OR）」→ {"or": [...]}
-- 除外規定は conditionType: "EXCLUDE" とし、該当すれば非該当方向になる
-
-変数名の規約:
+JSONLogicの変数名規約:
 - elastic_modulus_m: 比弾性率（単位：m）
 - tensile_strength_m: 比強度（単位：m）
 - melting_point_celsius: 融点・軟化点（℃）
 - sio2_content_pct: SiO2含有量（%）
 - is_prepreg: プリプレグか否か（boolean）
-- product_form: 製品形態（"fiber"|"prepreg"|"molded"|"semi"）
-- primary_use: 主用途
-- is_centrifuge_rotor_use: ガス遠心分離機ロータ用途（boolean）`;
+- product_form: 製品形態（"fiber"|"prepreg"|"molded"|"semi"）`;
+
+// tool_use スキーマ（これにより Claude は必ず valid JSON を返す）
+const EXTRACT_TOOL: Anthropic.Tool = {
+  name: 'extract_regulation_rules',
+  description: '条文テキストから輸出規制ルールを抽出してJSONで返す',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      rules: {
+        type: 'array',
+        description: '抽出された規制ルールの配列（ルールなしの場合は空配列）',
+        items: {
+          type: 'object',
+          properties: {
+            ruleCode:             { type: 'string', description: '一意のコード。例: RULE-4-15-CARBON-FIBER' },
+            regulationItem:       { type: 'string', description: '別表第一の項番号。例: 5の項(18)' },
+            subItem:              { type: 'string', description: '省令の条・号。例: 省令第4条第15号ハ' },
+            descriptionJa:        { type: 'string', description: '人間向け説明（100字以内）' },
+            targetMaterials:      { type: 'array', items: { type: 'string' }, description: '対象材料・カテゴリ' },
+            conditionType:        { type: 'string', enum: ['MATCH', 'EXCLUDE', 'REQUIRE_REVIEW'] },
+            conditionLogic:       { type: 'object', description: 'JSONLogic形式の判定条件' },
+            conditionDescription: { type: 'string', description: '判定条件の簡潔な説明' },
+            thresholds:           { type: 'object', description: '閾値の辞書。例: {"比弾性率_m": 2540000}' },
+            sourceText:           { type: 'string', description: '根拠条文の原文（改行は省略可）' },
+            effectiveFrom:        { type: 'string', description: '有効開始日。例: 1991-04-01' },
+            sourceLaw:            { type: 'string', description: '根拠法令の条・号' },
+          },
+          required: ['ruleCode', 'regulationItem', 'subItem', 'descriptionJa',
+                     'targetMaterials', 'conditionType', 'conditionLogic',
+                     'conditionDescription', 'sourceText', 'effectiveFrom', 'sourceLaw'],
+        },
+      },
+    },
+    required: ['rules'],
+  },
+};
 
 export async function interpretLawText(
   articleText: string,
-  targetRegulationItems: string[]
+  targetRegulationItems?: string[]
 ): Promise<ExtractedRule[]> {
-  const prompt = `${SYSTEM_PROMPT}
+  const itemsHint = targetRegulationItems?.length
+    ? `対象項番（ヒント）: ${targetRegulationItems.join(', ')}\n`
+    : '対象項番は条文中から自動判定してください。\n';
 
-以下の貨物等省令の条文から、次の規制項番に関連するルールを全て抽出してください。
-対象項番: ${targetRegulationItems.join(', ')}
-
+  const userPrompt = `以下の貨物等省令の条文から、輸出規制ルールを全て抽出してください。
+${itemsHint}
 【条文テキスト】
-${articleText}
+${articleText}`;
 
-特に注意:
-- 各繊維種別（有機繊維・炭素繊維・無機繊維・ガラス繊維）ごとに個別のルールとして抽出
-- 除外規定（〜を除く）は conditionType: "EXCLUDE" として別ルールで抽出
-- 融点・軟化点の条件も必ず含める
-- 「成型品・半製品に限る」などの形態条件も含める`;
+  const message = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 4096,
+    system: SYSTEM_PROMPT,
+    tools: [EXTRACT_TOOL],
+    tool_choice: { type: 'tool', name: 'extract_regulation_rules' },
+    messages: [{ role: 'user', content: userPrompt }],
+  });
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
+  // tool_use ブロックから入力を取得（必ず存在する）
+  const toolBlock = message.content.find((b) => b.type === 'tool_use') as
+    | Anthropic.ToolUseBlock
+    | undefined;
 
-  // JSONブロックが含まれる場合は抽出
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error(`Geminiの応答からJSONを抽出できません: ${text.slice(0, 200)}`);
+  if (!toolBlock) throw new Error('tool_use ブロックが見つかりません');
 
-  return JSON.parse(jsonMatch[0]) as ExtractedRule[];
+  const input = toolBlock.input as { rules: ExtractedRule[] };
+  return input.rules ?? [];
 }
 
 // 品目特定のための対話AIプロンプト
