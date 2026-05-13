@@ -388,8 +388,13 @@ export default function ClassifyPage() {
               </CardContent>
             </Card>
 
-            <div className="no-print flex gap-2">
-              <Button onClick={handlePrint} variant="outline">🖨️ PDF出力</Button>
+            <div className="no-print flex items-center gap-3">
+              <Button
+                onClick={handlePrint}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 text-base font-semibold shadow-md"
+              >
+                🖨️ PDF出力
+              </Button>
               <Button onClick={reset} variant="outline">新しい品目を判定する</Button>
             </div>
           </div>
