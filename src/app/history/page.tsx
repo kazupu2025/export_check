@@ -16,6 +16,7 @@ interface ComparisonRecord {
     parameter_ja: string;
     unit: string;
     display_expr: string;
+    source_text?: string;
   };
   userValue: number;
   exceeded: boolean;
@@ -50,6 +51,10 @@ export default function HistoryPage() {
   const [records, setRecords] = useState<JudgmentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedSource, setExpandedSource] = useState<string | null>(null);
+
+  const toggleSource = (key: string) =>
+    setExpandedSource((prev) => (prev === key ? null : key));
 
   useEffect(() => {
     fetch('/api/history')
@@ -142,19 +147,40 @@ export default function HistoryPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {r.comparisons.map((c, i) => (
-                              <tr key={i} className="border-b last:border-0">
-                                <td className="py-1 pr-3 font-medium">{c.threshold.parameter_ja}</td>
-                                <td className="py-1 pr-3 text-right font-mono">{c.userValue} {c.threshold.unit}</td>
-                                <td className="py-1 pr-3 text-center text-gray-600">{c.threshold.display_expr}</td>
-                                <td className="py-1 pr-3 text-center">
-                                  {c.exceeded
-                                    ? <span className="text-red-600 font-bold">超過</span>
-                                    : <span className="text-green-600 font-bold">以内</span>}
-                                </td>
-                                <td className="py-1 text-gray-500">{c.threshold.article_num} {c.threshold.item_num}</td>
-                              </tr>
-                            ))}
+                            {r.comparisons.map((c, i) => {
+                              const srcKey = `${r.id}-${i}`;
+                              return (
+                                <tr key={i} className="border-b last:border-0 align-top">
+                                  <td className="py-1 pr-3 font-medium">{c.threshold.parameter_ja}</td>
+                                  <td className="py-1 pr-3 text-right font-mono">{c.userValue} {c.threshold.unit}</td>
+                                  <td className="py-1 pr-3 text-center text-gray-600">{c.threshold.display_expr}</td>
+                                  <td className="py-1 pr-3 text-center">
+                                    {c.exceeded
+                                      ? <span className="text-red-600 font-bold">超過</span>
+                                      : <span className="text-green-600 font-bold">以内</span>}
+                                  </td>
+                                  <td className="py-1">
+                                    {c.threshold.source_text ? (
+                                      <>
+                                        <button
+                                          className="text-blue-600 hover:underline"
+                                          onClick={() => toggleSource(srcKey)}
+                                        >
+                                          {c.threshold.article_num} {c.threshold.item_num} {expandedSource === srcKey ? '▲' : '▼'}
+                                        </button>
+                                        {expandedSource === srcKey && (
+                                          <div className="mt-1 p-2 bg-amber-50 border border-amber-200 rounded whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto text-gray-700">
+                                            {c.threshold.source_text}
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="text-gray-500">{c.threshold.article_num} {c.threshold.item_num}</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>

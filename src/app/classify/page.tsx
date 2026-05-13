@@ -75,7 +75,7 @@ export default function ClassifyPage() {
   const [specValues, setSpecValues] = useState<Record<string, string>>({});
   const [result, setResult] = useState<ClassificationResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [expandedSource, setExpandedSource] = useState<string | null>(null);
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
 
   const searchParameters = async () => {
     if (!selectedForm) return;
@@ -119,6 +119,11 @@ export default function ClassifyPage() {
     });
     const data = await res.json() as ClassificationResult;
     setResult(data);
+    // 超過した行の条文を自動展開
+    const autoExpand = new Set(
+      data.comparisons.map((c, i) => c.exceeded ? String(i) : null).filter(Boolean) as string[]
+    );
+    setExpandedSources(autoExpand);
     setPhase('result');
     setLoading(false);
   };
@@ -127,11 +132,11 @@ export default function ClassifyPage() {
     setPhase('input_material');
     setMaterialInput('');
     setSelectedForm(null);
+    setExpandedSources(new Set());
     setKeywords([]);
     setParameters([]);
     setSpecValues({});
     setResult(null);
-    setExpandedSource(null);
   };
 
   const verdictStyle = (verdict: string) => {
@@ -334,12 +339,19 @@ export default function ClassifyPage() {
                           <td className="py-2">
                             <button
                               className="text-xs text-blue-600 hover:underline"
-                              onClick={() => setExpandedSource(expandedSource === String(i) ? null : String(i))}
+                              onClick={() => {
+                                const key = String(i);
+                                setExpandedSources((prev) => {
+                                  const next = new Set(prev);
+                                  next.has(key) ? next.delete(key) : next.add(key);
+                                  return next;
+                                });
+                              }}
                             >
-                              {c.threshold.article_num} {c.threshold.item_num}
+                              {c.threshold.article_num} {c.threshold.item_num} {expandedSources.has(String(i)) ? '▲' : '▼'}
                             </button>
-                            {expandedSource === String(i) && (
-                              <div className="mt-1 p-2 bg-amber-50 rounded text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+                            {expandedSources.has(String(i)) && (
+                              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-gray-700 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                                 {c.threshold.source_text}
                               </div>
                             )}
