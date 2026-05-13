@@ -76,6 +76,14 @@ export default function ClassifyPage() {
   const [result, setResult] = useState<ClassificationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+  const [judgedAt, setJudgedAt] = useState<string>('');
+
+  const handlePrint = () => {
+    if (!result) return;
+    // 全条文を展開してから印刷
+    setExpandedSources(new Set(result.comparisons.map((_, i) => String(i))));
+    setTimeout(() => window.print(), 150);
+  };
 
   const searchParameters = async () => {
     if (!selectedForm) return;
@@ -119,6 +127,7 @@ export default function ClassifyPage() {
     });
     const data = await res.json() as ClassificationResult;
     setResult(data);
+    setJudgedAt(new Date().toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
     // 超過した行の条文を自動展開
     const autoExpand = new Set(
       data.comparisons.map((c, i) => c.exceeded ? String(i) : null).filter(Boolean) as string[]
@@ -133,6 +142,7 @@ export default function ClassifyPage() {
     setMaterialInput('');
     setSelectedForm(null);
     setExpandedSources(new Set());
+    setJudgedAt('');
     setKeywords([]);
     setParameters([]);
     setSpecValues({});
@@ -162,7 +172,7 @@ export default function ClassifyPage() {
 
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         {/* Step indicator */}
-        <div className="flex items-center gap-2 text-sm">
+        <div className="no-print flex items-center gap-2 text-sm">
           {(['品目入力', 'スペック入力', '判定結果'] as const).map((label, i) => {
             const phases: Phase[] = ['input_material', 'input_specs', 'result'];
             const active = phase === phases[i];
@@ -298,6 +308,13 @@ export default function ClassifyPage() {
         {/* Phase 3: 判定結果 */}
         {phase === 'result' && result && (
           <div className="space-y-4">
+            {/* 印刷用ヘッダー（画面では非表示） */}
+            <div className="print-only hidden border-b-2 border-gray-800 pb-3 mb-4">
+              <p className="text-lg font-bold">輸出管理 該否判定書</p>
+              <p className="text-sm text-gray-600">判定日時: {judgedAt}</p>
+              <p className="text-sm text-gray-600">品目: {materialInput}（{selectedForm?.label}）</p>
+            </div>
+
             <div className={`border-2 rounded-xl p-5 ${verdictStyle(result.verdict)}`}>
               <div className="text-2xl font-bold mb-1">
                 {verdictIcon(result.verdict)} {result.verdict}
@@ -351,7 +368,7 @@ export default function ClassifyPage() {
                               {c.threshold.article_num} {c.threshold.item_num} {expandedSources.has(String(i)) ? '▲' : '▼'}
                             </button>
                             {expandedSources.has(String(i)) && (
-                              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-gray-700 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                              <div className="source-text-content mt-2 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-gray-700 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                                 {c.threshold.source_text}
                               </div>
                             )}
@@ -371,7 +388,10 @@ export default function ClassifyPage() {
               </CardContent>
             </Card>
 
-            <Button onClick={reset} variant="outline">新しい品目を判定する</Button>
+            <div className="no-print flex gap-2">
+              <Button onClick={handlePrint} variant="outline">🖨️ PDF出力</Button>
+              <Button onClick={reset} variant="outline">新しい品目を判定する</Button>
+            </div>
           </div>
         )}
       </main>

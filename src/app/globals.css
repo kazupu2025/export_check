@@ -128,3 +128,49 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  @page {
+    margin: 20mm;
+    size: A4;
+  }
+
+  /* サイドバー・ナビ・操作ボタン類を非表示 */
+  aside,
+  .no-print {
+    display: none !important;
+  }
+
+  /* 印刷専用要素を表示 */
+  .print-only {
+    display: block !important;
+  }
+
+  /* レイアウトをフル幅に */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* 条文テキストの高さ制限を解除してスクロールなしで全文表示 */
+  .source-text-content {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* テーブル行をページまたぎしない */
+  tr {
+    break-inside: avoid;
+  }
+
+  /* 判定結果カードの背景色を印刷対応に */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
