@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const NAV_ITEMS = [
   { href: '/',            label: 'ホーム',         icon: '🏠' },
   { href: '/classify',    label: '該否判定',        icon: '⚖️' },
+  { href: '/history',     label: '判定履歴',        icon: '📝' },
   { href: '/regulations', label: '法令データ管理',   icon: '📋' },
 ];
 

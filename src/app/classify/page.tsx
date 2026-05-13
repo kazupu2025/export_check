@@ -108,7 +108,14 @@ export default function ClassifyPage() {
     const res = await fetch('/api/classify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keywords, specs, targetArticles: selectedForm?.articles ?? [], formId: selectedForm?.id ?? '' }),
+      body: JSON.stringify({
+        keywords,
+        specs,
+        targetArticles: selectedForm?.articles ?? [],
+        formId: selectedForm?.id ?? '',
+        productName: materialInput,
+        formLabel: selectedForm?.label ?? '',
+      }),
     });
     const data = await res.json() as ClassificationResult;
     setResult(data);
