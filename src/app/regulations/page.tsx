@@ -62,11 +62,11 @@ export default function RegulationsPage() {
     setPatchMessage(null);
     try {
       const res = await fetch('/api/apply-patches', { method: 'POST' });
-      const data = await res.json() as { deleted: number; errors: string[] };
+      const data = await res.json() as { deleted: number; updated: number; errors: string[] };
       if (data.errors.length > 0) {
         setPatchMessage(`❌ ${data.errors.join(' / ')}`);
       } else {
-        setPatchMessage(`✅ パッチ適用完了: ${data.deleted} 件削除`);
+        setPatchMessage(`✅ パッチ適用完了: ${data.deleted} 件削除 / ${data.updated} 件更新`);
       }
     } catch (e) {
       setPatchMessage(`❌ ${e instanceof Error ? e.message : '不明なエラー'}`);
