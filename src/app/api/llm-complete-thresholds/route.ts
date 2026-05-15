@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
+import { requireAdmin } from '@/lib/require-admin';
 
 // パラメータ名の推奨語彙（classifier.ts / regex-extractor.ts と一致させる）
 const PARAMETER_VOCAB = [
@@ -14,6 +15,9 @@ const PARAMETER_VOCAB = [
 ].join('、');
 
 export async function POST() {
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {

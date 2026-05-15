@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { extractThresholdsFromText } from '@/lib/regex-extractor';
+import { requireAdmin } from '@/lib/require-admin';
 
 // POST /api/extract-thresholds
 // law_items の全レコードから正規表現で閾値を抽出して regulation_thresholds に保存（LLM不使用）
 export async function POST() {
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {

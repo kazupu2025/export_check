@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { fetchAndParseLaw, extractLawItemRecords } from '@/lib/egov-parser';
 import { createServerClient } from '@/lib/supabase';
+import { requireAdmin } from '@/lib/require-admin';
 
 const LAW_ID = '403M50000400049';
 
 // POST /api/fetch-law-items
 // e-gov から直接取得・パースして law_items テーブルに保存（LLM不使用）
 export async function POST() {
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
