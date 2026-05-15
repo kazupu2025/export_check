@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { fetchAndParseLaw, flattenArticleToText } from '@/lib/egov-parser';
 import { interpretLawText } from '@/lib/law-interpreter';
 import { createServerClient } from '@/lib/supabase';
+import { requireAdmin } from '@/lib/require-admin';
 import type { ExtractedRule } from '@/lib/types';
 
 // POST /api/interpret-all-laws
 // 全条文を順次処理してDBに保存。SSEでリアルタイム進捗を返す
 export async function POST() {
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchAndParseLaw, flattenArticleToText } from '@/lib/egov-parser';
 import { interpretLawText } from '@/lib/law-interpreter';
 import { createServerClient } from '@/lib/supabase';
+import { requireAdmin } from '@/lib/require-admin';
 
 // POST /api/interpret-law
 // 法令XMLを取得 → Geminiで解釈 → Supabaseに保存
 export async function POST(req: NextRequest) {
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
   try {
     const { targetArticles, regulationItems, saveToDb } = await req.json() as {
       targetArticles: string[];        // 例: ["第一条", "第四条"]

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { fetchAndParseLaw, flattenArticleToText } from '@/lib/egov-parser';
+import { requireAuth } from '@/lib/require-auth';
 
 // GET /api/fetch-law
 // e-govから貨物等省令を取得してパース結果を返す
 export async function GET() {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
   try {
     const { lawTitle, lawNum, articles, rawXml } = await fetchAndParseLaw();
 

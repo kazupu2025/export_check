@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createServerClient } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
 import type { ChatMessage } from '@/lib/types';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -69,6 +70,8 @@ async function fetchRelevantLawItems(userText: string): Promise<string> {
 
 // POST /api/chat
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
   try {
     const { messages, sessionId } = await req.json() as {
       messages: ChatMessage[];
