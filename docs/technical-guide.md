@@ -249,6 +249,79 @@ SSE = Server-Sent Events（進捗をリアルタイムストリーム）
 
 ---
 
+## 認証・認可
+
+### 認証フロー
+
+Supabase Auth（メール/パスワード）を使用。セッションは `@supabase/ssr` によりクッキーで管理される。
+
+```
+ユーザー → /login → supabase.auth.signInWithPassword()
+                        │
+                        ▼
+                   Supabase Auth
+                        │ JWT発行・Cookie保存
+                        ▼
+              Next.js Middleware（全ページ）
+                        │ auth.getUser() でセッション確認
+                        │ 未認証 → /login にリダイレクト
+                        ▼
+                    各ページ・APIルート
+```
+
+### パスワードリセットフロー
+
+```
+/reset-password → resetPasswordForEmail(email, { redirectTo: '/update-password' })
+                        │
+                        ▼
+               Supabase がリセットメールを送信
+                        │（ユーザーがメール内リンクをクリック）
+                        ▼
+              /update-password（URLにトークン含む）
+                        │ Supabase がトークンを自動処理してセッション確立
+                        ▼
+               supabase.auth.updateUser({ password })
+```
+
+### ロール管理
+
+| ロール | 該否判定 | 判定履歴 | 法令閲覧 | 法令操作ボタン |
+|--------|---------|---------|---------|-------------|
+| admin | ✅ | ✅ | ✅ | ✅ |
+| user | ✅ | ✅ | ✅ | ❌ |
+
+ロールは `profiles` テーブルで管理。新規ユーザー作成時にトリガー（`handle_new_user`）が自動で `role = 'user'` のレコードを挿入する。
+
+**adminへの昇格**（Supabase SQL Editor）:
+```sql
+UPDATE profiles SET role = 'admin' WHERE id = '<user_id>';
+```
+
+### ユーザー管理手順
+
+| 操作 | 方法 |
+|------|------|
+| ユーザー追加 | Supabase Authentication → Add user |
+| ロール変更 | SQL Editor で `profiles` テーブルを UPDATE |
+| ユーザー削除 | Supabase Authentication → ユーザー削除（profiles も CASCADE 削除） |
+| パスワードリセット | ユーザー自身が /reset-password から実施 |
+
+### 関連ファイル
+
+| ファイル | 役割 |
+|---------|------|
+| `src/middleware.ts` | 未認証ユーザーを /login にリダイレクト |
+| `src/app/login/page.tsx` | ログインフォーム |
+| `src/app/reset-password/page.tsx` | リセットメール送信フォーム |
+| `src/app/update-password/page.tsx` | 新パスワード設定フォーム |
+| `src/lib/supabase-browser.ts` | クライアントコンポーネント用クライアント |
+| `src/lib/supabase-server.ts` | サーバーコンポーネント・APIルート用クライアント |
+| `src/app/api/auth/role/route.ts` | ログイン中ユーザーのロールを返すAPI |
+| `supabase/migrations/004_profiles.sql` | profilesテーブル・トリガー定義 |
+
+---
+
 ## セキュリティ
 
 | 項目 | 対策 |
@@ -256,7 +329,7 @@ SSE = Server-Sent Events（進捗をリアルタイムストリーム）
 | APIキー管理 | `.env.local`（gitignore済み）で管理 |
 | シークレット漏洩防止 | pre-commitフックで検出・ブロック |
 | GitHub Secret Protection | Settings → Security and quality → 有効化（手動） |
-| 認証 | 現状なし（社内アクセス限定を前提） |
+| 認証 | Supabase Auth（メール/パスワード）、ロールベースアクセス制御 |
 
 ---
 

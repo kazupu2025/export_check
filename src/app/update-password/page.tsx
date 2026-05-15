@@ -2,26 +2,34 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
-export default function LoginPage() {
+export default function UpdatePasswordPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (password.length < 8) {
+      setError('パスワードは8文字以上で設定してください。');
+      return;
+    }
+    if (password !== confirm) {
+      setError('パスワードが一致しません。');
+      return;
+    }
+
+    setLoading(true);
     const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      setError('メールアドレスまたはパスワードが正しくありません');
+      setError('パスワードの更新に失敗しました。リンクの有効期限が切れている可能性があります。');
       setLoading(false);
       return;
     }
@@ -35,34 +43,35 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-white rounded-xl shadow-md p-8">
         <div className="mb-6 text-center">
           <p className="text-xs text-gray-500 mb-1">輸出管理</p>
-          <h1 className="text-xl font-bold text-gray-900">該否判定システム</h1>
+          <h1 className="text-xl font-bold text-gray-900">新しいパスワードを設定</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              メールアドレス
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              パスワード
+              新しいパスワード
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              autoComplete="current-password"
+              autoComplete="new-password"
+              placeholder="8文字以上"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              パスワード（確認）
+            </label>
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              autoComplete="new-password"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -76,14 +85,8 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
           >
-            {loading ? 'ログイン中...' : 'ログイン'}
+            {loading ? '更新中...' : 'パスワードを更新'}
           </button>
-
-          <div className="text-center">
-            <Link href="/reset-password" className="text-xs text-gray-500 hover:text-gray-700">
-              パスワードを忘れた方はこちら
-            </Link>
-          </div>
         </form>
       </div>
     </div>
