@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 const NAV_ITEMS = [
   { href: '/',            label: 'ホーム',         icon: '🏠' },
@@ -10,8 +11,20 @@ const NAV_ITEMS = [
   { href: '/regulations', label: '法令データ管理',   icon: '📋' },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  userEmail?: string;
+}
+
+export function Sidebar({ userEmail }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  }
 
   return (
     <aside className="w-52 shrink-0 min-h-screen bg-gray-900 flex flex-col">
@@ -42,9 +55,18 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* フッター */}
-      <div className="px-4 py-3 border-t border-gray-700">
-        <p className="text-xs text-gray-500">貨物等省令 v403M</p>
+      {/* ユーザー情報・ログアウト */}
+      <div className="px-4 py-3 border-t border-gray-700 space-y-2">
+        {userEmail && (
+          <p className="text-xs text-gray-400 truncate" title={userEmail}>{userEmail}</p>
+        )}
+        <button
+          onClick={handleLogout}
+          className="w-full text-left text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        >
+          ログアウト
+        </button>
+        <p className="text-xs text-gray-600">貨物等省令 v403M</p>
       </div>
     </aside>
   );

@@ -23,6 +23,7 @@ type ProgressEvent =
   | { type: 'error'; message: string };
 
 export default function RegulationsPage() {
+  const [isAdmin, setIsAdmin] = useState(false);
   const [items, setItems] = useState<LawItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
@@ -42,7 +43,12 @@ export default function RegulationsPage() {
   const [patching, setPatching] = useState(false);
   const [patchMessage, setPatchMessage] = useState<string | null>(null);
 
-  useEffect(() => { loadItems(); }, []);
+  useEffect(() => {
+    loadItems();
+    fetch('/api/auth/role')
+      .then((r) => r.json())
+      .then((d: { role: string | null }) => setIsAdmin(d.role === 'admin'));
+  }, []);
 
   const loadItems = async () => {
     setLoading(true);
@@ -248,34 +254,38 @@ export default function RegulationsPage() {
             )}
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button
-              onClick={runFetch}
-              disabled={fetching || extracting}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {fetching ? '取得中…' : '🔄 法令を再取得'}
-            </Button>
-            <Button
-              onClick={runExtract}
-              disabled={fetching || extracting || completing || items.length === 0}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              {extracting ? '抽出中…' : '⚙️ 閾値を抽出'}
-            </Button>
-            <Button
-              onClick={runLlmComplete}
-              disabled={fetching || extracting || completing || items.length === 0}
-              className="bg-orange-500 hover:bg-orange-600"
-            >
-              {completing ? 'LLM補完中…' : '🤖 LLM補完実行'}
-            </Button>
-            <Button
-              onClick={runPatches}
-              disabled={fetching || extracting || completing || patching}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {patching ? 'パッチ適用中…' : '🔧 既知誤抽出を修正'}
-            </Button>
+            {isAdmin && (
+              <>
+                <Button
+                  onClick={runFetch}
+                  disabled={fetching || extracting}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {fetching ? '取得中…' : '🔄 法令を再取得'}
+                </Button>
+                <Button
+                  onClick={runExtract}
+                  disabled={fetching || extracting || completing || items.length === 0}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  {extracting ? '抽出中…' : '⚙️ 閾値を抽出'}
+                </Button>
+                <Button
+                  onClick={runLlmComplete}
+                  disabled={fetching || extracting || completing || items.length === 0}
+                  className="bg-orange-500 hover:bg-orange-600"
+                >
+                  {completing ? 'LLM補完中…' : '🤖 LLM補完実行'}
+                </Button>
+                <Button
+                  onClick={runPatches}
+                  disabled={fetching || extracting || completing || patching}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {patching ? 'パッチ適用中…' : '🔧 既知誤抽出を修正'}
+                </Button>
+              </>
+            )}
             <Button variant="outline" onClick={loadItems} disabled={fetching || extracting || completing}>
               再読み込み
             </Button>
@@ -374,9 +384,11 @@ export default function RegulationsPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-gray-500 mb-4">法令データがまだ取得されていません。</p>
-              <Button onClick={runFetch} disabled={fetching}>
-                🔄 e-gov から法令を取得する
-              </Button>
+              {isAdmin && (
+                <Button onClick={runFetch} disabled={fetching}>
+                  🔄 e-gov から法令を取得する
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (

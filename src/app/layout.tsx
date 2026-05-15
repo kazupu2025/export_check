@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,18 +19,21 @@ export const metadata: Metadata = {
   description: "安全保障貿易管理（外為法）リスト規制 / キャッチオール規制",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <html
       lang="ja"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex">
-        <Sidebar />
+        {user && <Sidebar userEmail={user.email} />}
         <div className="flex-1 min-w-0 overflow-auto">
           {children}
         </div>
