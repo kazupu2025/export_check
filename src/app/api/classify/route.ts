@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { classifyProduct, getRequiredParameters, type SpecInput } from '@/lib/classifier';
 import { createServerClient } from '@/lib/supabase';
+import { requireAuth } from '@/lib/require-auth';
 
 // GET /api/classify?keywords=ガラス繊維,炭素繊維&articles=第四条,第三条&form=fiber_material
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
   const raw = req.nextUrl.searchParams.get('keywords') ?? '';
   const keywords = raw.split(',').map((k) => k.trim()).filter(Boolean);
   if (keywords.length === 0) return NextResponse.json({ parameters: [] });
@@ -19,6 +22,8 @@ export async function GET(req: NextRequest) {
 // POST /api/classify
 // { keywords, specs, targetArticles?, formId?, productName?, formLabel? } → 判定結果
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
   const {
     keywords,
     specs,
